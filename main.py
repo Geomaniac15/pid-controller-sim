@@ -12,15 +12,20 @@ centre_x = 1.5
 centre_y = 3.0
 R = 0.5
 
-Kp = 2.5 # proportional - accelerator
-Kd = 2.0 # derivative - brakes
+Kp = 2.0 # proportional - accelerator
+Kd = 1.5 # derivative - brakes
 
 noisy_x_pos = []
 noisy_y_pos = []
 measured_x_pos = []
 measured_y_pos = []
 
+alpha = 0.05
 dt = 0.01
+
+# initialise filtered state
+filtered_x = 0.0
+filtered_y = 0.0
 
 def update(frame):
     t = frame * dt
@@ -29,12 +34,17 @@ def update(frame):
     y_target = centre_y + R * sin(t)
 
     # add measurement noise
-    noise_level = 1.5
+    noise_level = 0.2
     measured_x = pos[0] + random.uniform(-noise_level, noise_level)
     measured_y = pos[1] + random.uniform(-noise_level, noise_level)
 
-    ax_control = Kp * (x_target - measured_x) - Kd * velocity[0]
-    ay_control = Kp * (y_target - measured_y) - Kd * velocity[1]
+    global filtered_x, filtered_y
+
+    filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
+    filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
+
+    ax_control = Kp * (x_target - filtered_x) - Kd * velocity[0]
+    ay_control = Kp * (y_target - filtered_y) - Kd * velocity[1]
 
     acceleration = [ax_control, ay_control]
 
