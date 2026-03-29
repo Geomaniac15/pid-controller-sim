@@ -4,7 +4,11 @@ import numpy as np
 
 pos = [0.0, 0.0]
 velocity = [2.0, 2.0]
-acceleration = [0.0, 0.0]
+
+x_target = 4.0
+y_target = 4.0
+Kp = 1.0
+Kd = 0.5
 
 x_pos = []
 y_pos = []
@@ -12,8 +16,11 @@ y_pos = []
 dt = 0.01
 
 def update(frame):
-    global line 
-    
+    ax = Kp * (x_target - pos[0]) - Kd * velocity[0]
+    ay = Kp * (y_target - pos[1]) - Kd * velocity[1]
+
+    acceleration = [ax, ay]
+
     velocity[0] += acceleration[0] * dt
     velocity[1] += acceleration[1] * dt
 
@@ -28,6 +35,8 @@ def update(frame):
     # print(f'Position: ({pos[0]},{pos[1]})')
     # print(f'Velocity: ({velocity[0]},{velocity[1]})')
     # print()
+
+    return line,
 
 fig, ax = plt.subplots()
 
