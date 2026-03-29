@@ -34,7 +34,7 @@ def update(frame):
     velocity[1] += acceleration[1] * dt
 
     speed = sqrt((velocity[0]**2) + (velocity[1]**2))
-    print(speed)
+    # print(speed)
     if speed > max_speed:
         scale = max_speed / speed
         velocity[0] *= scale
@@ -60,6 +60,7 @@ line, = ax.plot([], [])
 target_point, = ax.plot([], [], 'ro', markersize=5)
 
 ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
+ani.save('output.mp4', fps=30)
 
 plt.xlabel('X Pos')
 plt.ylabel('Y Pos')
