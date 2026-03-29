@@ -1,21 +1,24 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from math import cos, sin, sqrt
+import random
 
 pos = [0.0, 0.0]
 velocity = [0.0, 0.0]
 
 max_speed = 2.0
 
-centre_x = 4.0
-centre_y = 4.0
+centre_x = 1.5
+centre_y = 3.0
 R = 0.5
 
 Kp = 2.5 # proportional - accelerator
 Kd = 2.0 # derivative - brakes
 
-x_pos = []
-y_pos = []
+noisy_x_pos = []
+noisy_y_pos = []
+measured_x_pos = []
+measured_y_pos = []
 
 dt = 0.01
 
@@ -25,8 +28,13 @@ def update(frame):
     x_target = centre_x + R * cos(t)
     y_target = centre_y + R * sin(t)
 
-    ax_control = Kp * (x_target - pos[0]) - Kd * velocity[0]
-    ay_control = Kp * (y_target - pos[1]) - Kd * velocity[1]
+    # add measurement noise
+    noise_level = 1.5
+    measured_x = pos[0] + random.uniform(-noise_level, noise_level)
+    measured_y = pos[1] + random.uniform(-noise_level, noise_level)
+
+    ax_control = Kp * (x_target - measured_x) - Kd * velocity[0]
+    ay_control = Kp * (y_target - measured_y) - Kd * velocity[1]
 
     acceleration = [ax_control, ay_control]
 
@@ -43,13 +51,16 @@ def update(frame):
     pos[0] += velocity[0] * dt
     pos[1] += velocity[1] * dt
 
-    x_pos.append(pos[0])
-    y_pos.append(pos[1])
+    noisy_x_pos.append(pos[0])
+    noisy_y_pos.append(pos[1])
+    measured_x_pos.append(measured_x)
+    measured_y_pos.append(measured_y)
 
-    line.set_data(x_pos, y_pos)
+    line.set_data(noisy_x_pos, noisy_y_pos)
+    measured_line.set_data(measured_x_pos, measured_y_pos)
     target_point.set_data([x_target], [y_target])
 
-    return line, target_point
+    return line, measured_line, target_point
 
 fig, ax = plt.subplots()
 
@@ -57,10 +68,13 @@ ax.set_xlim(0, 5)
 ax.set_ylim(0, 5)
 
 line, = ax.plot([], [])
+measured_line, = ax.plot([], [], 'g--', alpha=0.6)
 target_point, = ax.plot([], [], 'ro', markersize=5)
 
+ax.legend(['Actual Path', 'Measured Path', 'Target'])
+
 ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
-ani.save('output.mp4', fps=30)
+# ani.save('output.mp4', fps=30)
 
 plt.xlabel('X Pos')
 plt.ylabel('Y Pos')
