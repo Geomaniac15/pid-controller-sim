@@ -1,16 +1,17 @@
-start_pos = [0,0]
-velocity = [2,2]
+import matplotlib.pyplot as plt 
 
-pos = start_pos
+pos = [0.0, 0.0]
+velocity = [2.0, 2.0]
+acceleration = [0.0, 0.0]
 
-acceleration = 3
 dt = 0.01
 
-for x in range(100):
-    pos[0] += velocity[0]
-    pos[1] += velocity[1]
+for step in range(100):
+    velocity[0] += acceleration[0] * dt
+    velocity[1] += acceleration[1] * dt
 
-    velocity *= acceleration
+    pos[0] += velocity[0] * dt
+    pos[1] += velocity[1] * dt
 
     print(f'Position: ({pos[0]},{pos[1]})')
     print(f'Velocity: ({velocity[0]},{velocity[1]})')
