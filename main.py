@@ -1,14 +1,14 @@
 import matplotlib.pyplot as plt 
 from matplotlib.animation import FuncAnimation
-import numpy as np
 
 pos = [0.0, 0.0]
-velocity = [2.0, 2.0]
+velocity = [0.0, 0.0]
 
 x_target = 4.0
 y_target = 4.0
-Kp = 1.0
-Kd = 0.5
+
+Kp = 1.5 # proportional - accelerator
+Kd = 2.0 # derivative - brakes
 
 x_pos = []
 y_pos = []
@@ -16,10 +16,10 @@ y_pos = []
 dt = 0.01
 
 def update(frame):
-    ax = Kp * (x_target - pos[0]) - Kd * velocity[0]
-    ay = Kp * (y_target - pos[1]) - Kd * velocity[1]
+    ax_control = Kp * (x_target - pos[0]) - Kd * velocity[0]
+    ay_control = Kp * (y_target - pos[1]) - Kd * velocity[1]
 
-    acceleration = [ax, ay]
+    acceleration = [ax_control, ay_control]
 
     velocity[0] += acceleration[0] * dt
     velocity[1] += acceleration[1] * dt
@@ -39,6 +39,8 @@ def update(frame):
     return line,
 
 fig, ax = plt.subplots()
+
+ax.plot(x_target, y_target, 'ro', markersize=5)
 
 ax.set_xlim(0, 5)
 ax.set_ylim(0, 5)
