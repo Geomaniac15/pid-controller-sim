@@ -1,13 +1,15 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from math import cos, sin
+from math import cos, sin, sqrt
 
 pos = [0.0, 0.0]
 velocity = [0.0, 0.0]
 
-centre_x = 2.0
-centre_y = 2.0
-R = 1.0
+max_speed = 2.0
+
+centre_x = 4.0
+centre_y = 4.0
+R = 0.5
 
 Kp = 2.5 # proportional - accelerator
 Kd = 2.0 # derivative - brakes
@@ -30,6 +32,13 @@ def update(frame):
 
     velocity[0] += acceleration[0] * dt
     velocity[1] += acceleration[1] * dt
+
+    speed = sqrt((velocity[0]**2) + (velocity[1]**2))
+    print(speed)
+    if speed > max_speed:
+        scale = max_speed / speed
+        velocity[0] *= scale
+        velocity[1] *= scale
 
     pos[0] += velocity[0] * dt
     pos[1] += velocity[1] * dt
