@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt 
+from matplotlib.animation import FuncAnimation
 import numpy as np
 
 pos = [0.0, 0.0]
@@ -10,7 +11,9 @@ y_pos = []
 
 dt = 0.01
 
-for step in range(100):
+def update(frame):
+    global line 
+    
     velocity[0] += acceleration[0] * dt
     velocity[1] += acceleration[1] * dt
 
@@ -20,16 +23,22 @@ for step in range(100):
     x_pos.append(pos[0])
     y_pos.append(pos[1])
 
+    line.set_data(x_pos, y_pos)
+
     # print(f'Position: ({pos[0]},{pos[1]})')
     # print(f'Velocity: ({velocity[0]},{velocity[1]})')
     # print()
 
-xpoints = np.array(x_pos)
-ypoints = np.array(y_pos)
+fig, ax = plt.subplots()
 
-plt.scatter(xpoints, ypoints, s=2)
+ax.set_xlim(0, 5)
+ax.set_ylim(0, 5)
 
-plt.xlabel('X Velocity')
-plt.ylabel('Y Velocity')
+line, = ax.plot([], [])
+
+ani = FuncAnimation(fig, update, frames=200, interval=50)
+
+plt.xlabel('X Pos')
+plt.ylabel('Y Pos')
 
 plt.show()
