@@ -1,13 +1,15 @@
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from math import cos, sin
 
 pos = [0.0, 0.0]
 velocity = [0.0, 0.0]
 
-x_target = 4.0
-y_target = 4.0
+centre_x = 2.0
+centre_y = 2.0
+R = 1.0
 
-Kp = 1.5 # proportional - accelerator
+Kp = 2.5 # proportional - accelerator
 Kd = 2.0 # derivative - brakes
 
 x_pos = []
@@ -16,6 +18,11 @@ y_pos = []
 dt = 0.01
 
 def update(frame):
+    t = frame * dt
+
+    x_target = centre_x + R * cos(t)
+    y_target = centre_y + R * sin(t)
+
     ax_control = Kp * (x_target - pos[0]) - Kd * velocity[0]
     ay_control = Kp * (y_target - pos[1]) - Kd * velocity[1]
 
@@ -31,23 +38,19 @@ def update(frame):
     y_pos.append(pos[1])
 
     line.set_data(x_pos, y_pos)
+    target_point.set_data([x_target], [y_target])
 
-    # print(f'Position: ({pos[0]},{pos[1]})')
-    # print(f'Velocity: ({velocity[0]},{velocity[1]})')
-    # print()
-
-    return line,
+    return line, target_point
 
 fig, ax = plt.subplots()
-
-ax.plot(x_target, y_target, 'ro', markersize=5)
 
 ax.set_xlim(0, 5)
 ax.set_ylim(0, 5)
 
 line, = ax.plot([], [])
+target_point, = ax.plot([], [], 'ro', markersize=5)
 
-ani = FuncAnimation(fig, update, frames=200, interval=50)
+ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
 
 plt.xlabel('X Pos')
 plt.ylabel('Y Pos')
