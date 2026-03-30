@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from math import cos, sin, sqrt
+from math import cos, sin, sqrt, inf
 import random
 
 pos = [0.0, 0.0]
@@ -32,6 +32,64 @@ filtered_y = 0.0
 # error of sums
 error_sum_x = 0.0
 error_sum_y = 0.0
+
+def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
+    # reset state for each simulation
+    pos = [0.0, 0.0]
+    velocity = [0.0, 0.0]
+    filtered_x = 0.0
+    filtered_y = 0.0
+    error_sum_x = 0.0
+    error_sum_y = 0.0
+
+    total_cost = 0.0
+
+    for step in range(500):
+        t = step * dt
+
+        x_target = centre_x + R * cos(t)
+        y_target = centre_y + R * sin(t)
+
+        # noise
+        noise_level = 0.2
+        measured_x = pos[0] + random.uniform(-noise_level, noise_level)
+        measured_y = pos[1] + random.uniform(-noise_level, noise_level)
+
+        # filtering
+        filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
+        filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
+
+        # error
+        error_x = x_target - filtered_x
+        error_y = y_target - filtered_y
+
+        # PID
+        ax_control = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
+        ay_control = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
+
+        velocity[0] += ax_control * dt
+        velocity[1] += ay_control * dt
+
+        speed = sqrt(velocity[0]**2 + velocity[1]**2)
+        if speed > max_speed:
+            scale = max_speed / speed
+            velocity[0] *= scale
+            velocity[1] *= scale
+
+        pos[0] += velocity[0] * dt
+        pos[1] += velocity[1] * dt
+
+        # integral
+        error_sum_x += error_x * dt
+        error_sum_y += error_y * dt
+
+        error_sum_x = max(min(error_sum_x, limit), -limit)
+        error_sum_y = max(min(error_sum_y, limit), -limit)
+
+        # accumulate cost
+        total_cost += (x_target - pos[0])**2 + (y_target - pos[1])**2
+
+    return total_cost
 
 def update(frame):
     t = frame * dt
@@ -89,21 +147,47 @@ def update(frame):
 
     return line, measured_line, target_point
 
-fig, ax = plt.subplots()
+def animate_controller():
+    ax.set_xlim(0, 5)
+    ax.set_ylim(0, 5)
 
-ax.set_xlim(0, 5)
-ax.set_ylim(0, 5)
+    ax.legend(['Actual Path', 'Measured Path', 'Target'])
 
-line, = ax.plot([], [])
-measured_line, = ax.plot([], [], 'g--', alpha=0.6)
-target_point, = ax.plot([], [], 'ro', markersize=5)
+    ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
+    # ani.save('output.mp4', fps=30)
 
-ax.legend(['Actual Path', 'Measured Path', 'Target'])
+    plt.xlabel('X Pos')
+    plt.ylabel('Y Pos')
 
-ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
-# ani.save('output.mp4', fps=30)
+    plt.show()
 
-plt.xlabel('X Pos')
-plt.ylabel('Y Pos')
+# fig, ax = plt.subplots()
 
-plt.show()
+# line, = ax.plot([], [])
+# measured_line, = ax.plot([], [], 'g--', alpha=0.6)
+# target_point, = ax.plot([], [], 'ro', markersize=5)
+
+# animate_controller()
+
+'''
+Kp: 0.5 - 5
+Kd: 0 - 5
+Ki: 0 - 1
+alpha: 0.01 - 0.5
+'''
+
+for _ in range(10):
+    best_cost = []
+    best_params = []
+    for _ in range(200):
+        Kp = random.uniform(0.5, 5)
+        Kd = random.uniform(0, 5)
+        # Ki = random.uniform(0, 1)
+        # alpha = random.uniform(0.01, 0.5)
+
+        cost = simulate(Kp, Kd)
+        if cost < best_cost:
+            best_cost = cost
+            best_params = (Kp, Kd)
+
+print(best_params, best_cost)
