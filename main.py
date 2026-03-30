@@ -35,23 +35,19 @@ error_sum_x = 0.0
 error_sum_y = 0.0
 
 def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
-                Kp, Kd, Ki, alpha, t):
+                Kp, Kd, Ki, alpha, t, mass, noise_level, wind_scale):
     # wind
-    wind_x = 0.4 * sin(0.7 * t)
-    wind_y = -0.2 * cos(0.5 * t)
+    wind_x = wind_scale * sin(0.7 * t)
+    wind_y = -0.5 * wind_scale * cos(0.5 * t)
 
     # drag coefficient
     drag = 0.3
-
-    # mass coefficient
-    mass = 3
 
     # target
     x_target = centre_x + R * cos(t) + 0.2 * sin(3*t)
     y_target = centre_y + R * sin(t)
 
     # noise
-    noise_level = 0.2
     measured_x = pos[0] + random.uniform(-noise_level, noise_level)
     measured_y = pos[1] + random.uniform(-noise_level, noise_level)
 
@@ -105,6 +101,11 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     error_sum_x = 0.0
     error_sum_y = 0.0
 
+    # randomise world parameters
+    mass = random.uniform(2.0, 5.0)
+    noise_level = random.uniform(0.1, 0.4)
+    wind_scale = random.uniform(0.2, 0.6)
+
     total_cost = 0.0
 
     for step in range(1000):
@@ -112,7 +113,7 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
 
         pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
             pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
-            Kp, Kd, Ki, alpha, t
+            Kp, Kd, Ki, alpha, t, mass, noise_level, wind_scale
         )
 
         # rewards closeness to target, quick reactions, low lag
@@ -131,9 +132,13 @@ def update(frame):
 
     global filtered_x, filtered_y, error_sum_x, error_sum_y
 
+    mass = 3.0
+    noise_level = 0.2
+    wind_scale = 0.4
+
     pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
         pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
-        Kp, Kd, Ki, alpha, t
+        Kp, Kd, Ki, alpha, t, mass, noise_level, wind_scale
     )
 
     noisy_x_pos.append(pos[0])
