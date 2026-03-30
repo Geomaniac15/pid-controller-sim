@@ -190,11 +190,11 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
         )
 
         # rewards closeness to target, quick reactions, low lag
-        total_cost += (
-            (x_target - pos[0])**2 +
-            (y_target - pos[1])**2 +
-            0.5 * (z_target - pos[2])**2
-        )
+        ex = x_target - pos[0]
+        ey = y_target - pos[1]
+        ez = z_target - pos[2]
+
+        total_cost += (ex*ex + ey*ey + 0.5 * ez*ez)
 
         # rewards slower movements, smoothness, low aggressive acceleration
         total_cost += 0.05 * (
@@ -207,13 +207,13 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
         )
 
         # success conditions
-        distance = sqrt(
+        distance_sq = (
             (x_target - pos[0])**2 + 
             (y_target - pos[1])**2 +
             (z_target - pos[2])**2
-            )
+        )
         
-        if distance < 0.2:
+        if distance_sq < 0.2**2:
             on_target_steps += 1
         else:
             on_target_steps = 0
@@ -261,6 +261,15 @@ def update(frame):
     measured_y_pos.append(measured_y)
     measured_z_pos.append(measured_z)
 
+    max_points = 2000
+    if len(noisy_x_pos) > max_points:
+        noisy_x_pos.pop(0)
+        noisy_y_pos.pop(0)
+        noisy_z_pos.pop(0)
+        measured_x_pos.pop(0)
+        measured_y_pos.pop(0)
+        measured_z_pos.pop(0)
+
     line.set_data(noisy_x_pos, noisy_y_pos)
     line.set_3d_properties(noisy_z_pos)
 
@@ -277,7 +286,7 @@ def animate_controller():
     ax.set_ylim(0, 5)
     ax.set_zlim(0, 3)
 
-    ax.legend(['Actual Path', 'Measured Path', 'Target'])
+    ax.legend()
 
     ani = FuncAnimation(fig, update, frames=int(2*pi / dt), interval=20, blit=False)
     # ani.save('output.mp4', fps=30)
@@ -328,6 +337,25 @@ def optimise():
 
 def run():
     global fig, ax, line, measured_line, target_point
+
+    # reset state before each run
+    global pos, velocity
+    global filtered_x, filtered_y, filtered_z
+    global error_sum_x, error_sum_y, error_sum_z
+
+    pos = [0.0, 0.0, 0.0]
+    velocity = [0.0, 0.0, 0.0]
+
+    filtered_x = filtered_y = filtered_z = 0.0
+    error_sum_x = error_sum_y = error_sum_z = 0.0
+
+    noisy_x_pos.clear()
+    noisy_y_pos.clear()
+    noisy_z_pos.clear()
+
+    measured_x_pos.clear()
+    measured_y_pos.clear()
+    measured_z_pos.clear()
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
