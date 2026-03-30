@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from math import cos, sin, sqrt, inf
+from math import cos, sin, sqrt, inf, pi
 from statistics import mean
 import random
 
@@ -37,8 +37,8 @@ error_sum_y = 0.0
 def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
                 Kp, Kd, Ki, alpha, t):
     # wind
-    wind_x = 0.3
-    wind_y = -0.2
+    wind_x = 0.4 * sin(0.7 * t)
+    wind_y = -0.2 * cos(0.5 * t)
 
     # target
     x_target = centre_x + R * cos(t)
@@ -94,7 +94,7 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
 
     total_cost = 0.0
 
-    for step in range(500):
+    for step in range(1000):
         t = step * dt
 
         pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, _, _ = step_system(
@@ -107,7 +107,7 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     return total_cost
 
 def update(frame):
-    t = frame * dt
+    t = (frame * dt) % (2 * pi)
 
     global filtered_x, filtered_y, error_sum_x, error_sum_y
 
@@ -133,7 +133,7 @@ def animate_controller():
 
     ax.legend(['Actual Path', 'Measured Path', 'Target'])
 
-    ani = FuncAnimation(fig, update, frames=500, interval=20, blit=True)
+    ani = FuncAnimation(fig, update, frames=int(2*pi / dt), interval=20, blit=True)
     # ani.save('output.mp4', fps=30)
 
     plt.xlabel('X Pos')
