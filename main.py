@@ -43,8 +43,11 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     # drag coefficient
     drag = 0.3
 
+    # mass coefficient
+    mass = 3
+
     # target
-    x_target = centre_x + R * cos(t)
+    x_target = centre_x + R * cos(t) + 0.2 * sin(3*t)
     y_target = centre_y + R * sin(t)
 
     # noise
@@ -69,8 +72,8 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     drag_y = -drag * velocity[1]
 
     # physics update
-    velocity[0] += (ax + wind_x + drag_x) * dt
-    velocity[1] += (ay + wind_y + drag_y) * dt
+    velocity[0] += (ax + wind_x + drag_x) / mass * dt
+    velocity[1] += (ay + wind_y + drag_y) / mass * dt
 
     speed = sqrt(velocity[0]**2 + velocity[1]**2)
     if speed > max_speed:
@@ -107,12 +110,19 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     for step in range(1000):
         t = step * dt
 
-        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, *_ = step_system(
+        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
             pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
             Kp, Kd, Ki, alpha, t
         )
 
+        # rewards closeness to target, quick reactions, low lag
         total_cost += (x_target - pos[0])**2 + (y_target - pos[1])**2
+        
+        # rewards slower movements, smoothness, low aggressive acceleration
+        total_cost += 0.05 * (velocity[0]**2 + velocity[1]**2)
+
+        # penalises aggressive control inputs
+        total_cost += 0.01 * (ax_total**2 + ay_total**2)
 
     return total_cost
 
@@ -176,7 +186,8 @@ def optimise():
             best_cost = cost
             best_params = (Kp, Kd, Ki, alpha)
 
-    print('Best params:', best_params)
+    print('Best params')
+    print(f'Kp: {best_params[0]}, Kd: {best_params[1]}, Ki: {best_params[2]}, alpha: {best_params[3]}')
     print('Best cost:', best_cost)
 
     return best_params
