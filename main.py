@@ -47,6 +47,13 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     x_target = centre_x + R * cos(t) + 0.2 * sin(3*t)
     y_target = centre_y + R * sin(t)
 
+    # derivatives for feed-forward
+    vx_target = -R * sin(t) + 0.6 * cos(3*t)
+    vy_target = R * cos(t)
+
+    ax_target = -R * cos(t) - 1.8 * sin(3*t)
+    ay_target = -R * sin(t)
+
     # noise
     measured_x = pos[0] + random.uniform(-noise_level, noise_level)
     measured_y = pos[1] + random.uniform(-noise_level, noise_level)
@@ -60,8 +67,20 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     error_y = y_target - filtered_y
 
     # PID control
-    ax = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
-    ay = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
+    ax = (
+        Kp * error_x 
+        + Ki * error_sum_x 
+        - Kd * (velocity[0] - vx_target)
+        )
+    
+    ay = (
+        Kp * error_y 
+        + Ki * error_sum_y 
+        - Kd * (velocity[1] - vy_target)
+        )
+    
+    ax += ax_target
+    ay += ay_target
 
     # drag force (opposes current velocity)
     drag_x = -drag * velocity[0]
@@ -108,6 +127,10 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
 
     total_cost = 0.0
 
+    on_target_steps = 0
+    success = False
+    timestep_found = 0
+
     for step in range(1000):
         t = step * dt
 
@@ -125,7 +148,22 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
         # penalises aggressive control inputs
         total_cost += 0.01 * (ax_total**2 + ay_total**2)
 
-    return total_cost
+        # success conditions
+        distance = sqrt((x_target - pos[0])**2 + (y_target - pos[1])**2)
+        if distance < 0.1:
+            on_target_steps += 1
+        else:
+            on_target_steps = 0
+
+        if on_target_steps > 50:
+            success = True
+            timestep_found = step * dt
+
+    # apply failure penalty once
+    if not success:
+        total_cost += 500
+
+    return total_cost, success, timestep_found
 
 def update(frame):
     t = (frame * dt) % (2 * pi)
@@ -178,6 +216,8 @@ def animate_controller():
 def optimise():
     best_cost = float('inf')
     best_params = None
+    best_success = False
+    best_timestep = 0
 
     for _ in range(200):
         Kp = random.uniform(0.5, 5)
@@ -185,15 +225,29 @@ def optimise():
         Ki = random.uniform(0.0, 0.5)
         alpha = random.uniform(0.01, 0.3)
 
-        cost = mean(simulate(Kp, Kd, Ki, alpha) for _ in range(5))
+        results = [simulate(Kp, Kd, Ki, alpha) for _ in range(5)]
+
+        # separate values
+        costs = [r[0] for r in results]
+        successes = [r[1] for r in results]
+        timesteps = [r[2] for r in results]
+
+        cost = mean(costs)
+        success = any(successes)
+        timestep_found = min([t for t in timesteps if t > 0], default=0)
 
         if cost < best_cost:
             best_cost = cost
             best_params = (Kp, Kd, Ki, alpha)
+            best_success = success
+            best_timestep = timestep_found
 
     print('Best params')
     print(f'Kp: {best_params[0]}, Kd: {best_params[1]}, Ki: {best_params[2]}, alpha: {best_params[3]}')
     print('Best cost:', best_cost)
+
+    print(f'Success: {best_success}')
+    print(f'Found at timestep {best_timestep}')
 
     return best_params
 
