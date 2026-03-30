@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from math import cos, sin, sqrt, inf
+from statistics import mean
 import random
 
 pos = [0.0, 0.0]
@@ -176,18 +177,23 @@ Ki: 0 - 1
 alpha: 0.01 - 0.5
 '''
 
-for _ in range(10):
-    best_cost = []
-    best_params = []
-    for _ in range(200):
-        Kp = random.uniform(0.5, 5)
-        Kd = random.uniform(0, 5)
-        # Ki = random.uniform(0, 1)
-        # alpha = random.uniform(0.01, 0.5)
+best_cost = float('inf')
+best_params = None
 
-        cost = simulate(Kp, Kd)
-        if cost < best_cost:
-            best_cost = cost
-            best_params = (Kp, Kd)
+for _ in range(200):
+    Kp = random.uniform(0.5, 5)
+    Kd = random.uniform(0, 5)
+    Ki = random.uniform(0.0, 0.5)
+    alpha = random.uniform(0.01, 0.3)
 
-print(best_params, best_cost)
+    cost = mean(simulate(Kp, Kd, Ki, alpha) for i in range(5))
+
+    if cost < best_cost:
+        best_cost = cost
+        best_params = (Kp, Kd, Ki, alpha)
+
+original_cost = simulate(Kp, Kd, Ki, alpha)
+
+print('Best params:', best_params)
+print('Best cost:', best_cost)
+print('Original cost:', original_cost)
