@@ -4,8 +4,8 @@ from math import cos, sin, sqrt, inf, pi
 from statistics import mean
 import random
 
-pos = [0.0, 0.0]
-velocity = [0.0, 0.0]
+pos = [0.0, 0.0, 0.0]
+velocity = [0.0, 0.0, 0.0]
 
 max_speed = 2.0
 
@@ -33,12 +33,14 @@ filtered_y = 0.0
 # error of sums
 error_sum_x = 0.0
 error_sum_y = 0.0
+error_sum_z = 0.0
 
-def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
+def step_system(pos, velocity, filtered_x, filtered_y, filtered_z, error_sum_x, error_sum_y, error_sum_z,
                 Kp, Kd, Ki, alpha, t, mass, noise_level, wind_scale):
     # wind
     wind_x = wind_scale * sin(0.7 * t)
     wind_y = -0.5 * wind_scale * cos(0.5 * t)
+    wind_z = wind_scale * sin(0.3 * t)
 
     # drag coefficient
     drag = 0.3
@@ -46,25 +48,31 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     # target
     x_target = centre_x + R * cos(t) + 0.2 * sin(3*t)
     y_target = centre_y + R * sin(t)
+    z_target = 1.0 + 0.5 * sin(0.5 * t)
 
     # derivatives for feed-forward
     vx_target = -R * sin(t) + 0.6 * cos(3*t)
     vy_target = R * cos(t)
+    vz_target = 0.25 * cos(0.5 * t)
 
     ax_target = -R * cos(t) - 1.8 * sin(3*t)
     ay_target = -R * sin(t)
+    az_target = -0.125 * sin(0.5 * t)
 
     # noise
     measured_x = pos[0] + random.uniform(-noise_level, noise_level)
     measured_y = pos[1] + random.uniform(-noise_level, noise_level)
+    measured_z = pos[2] + random.uniform(-noise_level, noise_level)
 
     # filtering
     filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
     filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
+    filtered_z = alpha * measured_z + (1 - alpha) * filtered_z
 
     # error
     error_x = x_target - filtered_x
     error_y = y_target - filtered_y
+    error_z = z_target - filtered_z
 
     # PID control
     ax = (
@@ -79,18 +87,27 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
         - Kd * (velocity[1] - vy_target)
         )
     
+    az = (
+        Kp * error_z
+        + Ki * error_sum_z
+        - Kd * (velocity[2] - vz_target)
+    )
+    
     ax += ax_target
     ay += ay_target
+    az += az_target
 
     # drag force (opposes current velocity)
     drag_x = -drag * velocity[0]
     drag_y = -drag * velocity[1]
+    drag_z = -drag * velocity[2]
 
     # physics update
     velocity[0] += (ax + wind_x + drag_x) / mass * dt
     velocity[1] += (ay + wind_y + drag_y) / mass * dt
+    velocity[2] += (az + wind_z + drag_z) / mass * dt
 
-    speed = sqrt(velocity[0]**2 + velocity[1]**2)
+    speed = sqrt(velocity[0]**2 + velocity[1]**2 + velocity[2]**2)
     if speed > max_speed:
         scale = max_speed / speed
         velocity[0] *= scale
@@ -98,13 +115,16 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
 
     pos[0] += velocity[0] * dt
     pos[1] += velocity[1] * dt
+    pos[2] += velocity[2] * dt
 
     # integral update
     error_sum_x += error_x * dt
     error_sum_y += error_y * dt
+    error_sum_z += error_z * dt
 
     error_sum_x = max(min(error_sum_x, limit), -limit)
     error_sum_y = max(min(error_sum_y, limit), -limit)
+    error_sum_z = max(min(error_sum_z, limit), -limit)
 
     ax_total = ax + wind_x + drag_x
     ay_total = ay + wind_y + drag_y
@@ -113,12 +133,14 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
 
 def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     # reset state for each simulation
-    pos = [0.0, 0.0]
-    velocity = [0.0, 0.0]
+    pos = [0.0, 0.0, 0.0]
+    velocity = [0.0, 0.0, 0.0]
     filtered_x = 0.0
     filtered_y = 0.0
+    filtered_z = 0.0
     error_sum_x = 0.0
     error_sum_y = 0.0
+    error_sum_z = 0.0
 
     # randomise world parameters
     mass = random.uniform(2.0, 5.0)
@@ -134,8 +156,8 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     for step in range(1000):
         t = step * dt
 
-        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
-            pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
+        pos, velocity, filtered_x, filtered_y, filtered_z, error_sum_x, error_sum_y, error_sum_z, x_target, y_target, z_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
+            pos, velocity, filtered_x, filtered_y, filtered_z, error_sum_x, error_sum_y, error_sum_z
             Kp, Kd, Ki, alpha, t, mass, noise_level, wind_scale
         )
 
@@ -149,7 +171,12 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
         total_cost += 0.01 * (ax_total**2 + ay_total**2)
 
         # success conditions
-        distance = sqrt((x_target - pos[0])**2 + (y_target - pos[1])**2)
+        distance = sqrt(
+            (x_target - pos[0])**2 + 
+            (y_target - pos[1])**2 +
+            (z_target - pos[2])**2
+            )
+        
         if distance < 0.1:
             on_target_steps += 1
         else:
