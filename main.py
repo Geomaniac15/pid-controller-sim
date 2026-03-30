@@ -34,6 +34,55 @@ filtered_y = 0.0
 error_sum_x = 0.0
 error_sum_y = 0.0
 
+def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
+                Kp, Kd, Ki, alpha, t):
+    # wind
+    wind_x = 0.3
+    wind_y = -0.2
+
+    # target
+    x_target = centre_x + R * cos(t)
+    y_target = centre_y + R * sin(t)
+
+    # noise
+    noise_level = 0.2
+    measured_x = pos[0] + random.uniform(-noise_level, noise_level)
+    measured_y = pos[1] + random.uniform(-noise_level, noise_level)
+
+    # filtering
+    filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
+    filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
+
+    # error
+    error_x = x_target - filtered_x
+    error_y = y_target - filtered_y
+
+    # PID control
+    ax = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
+    ay = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
+
+    # physics update
+    velocity[0] += (ax + wind_x) * dt
+    velocity[1] += (ay + wind_y) * dt
+
+    speed = sqrt(velocity[0]**2 + velocity[1]**2)
+    if speed > max_speed:
+        scale = max_speed / speed
+        velocity[0] *= scale
+        velocity[1] *= scale
+
+    pos[0] += velocity[0] * dt
+    pos[1] += velocity[1] * dt
+
+    # integral update
+    error_sum_x += error_x * dt
+    error_sum_y += error_y * dt
+
+    error_sum_x = max(min(error_sum_x, limit), -limit)
+    error_sum_y = max(min(error_sum_y, limit), -limit)
+
+    return pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y
+
 def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     # reset state for each simulation
     pos = [0.0, 0.0]
@@ -48,46 +97,11 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     for step in range(500):
         t = step * dt
 
-        x_target = centre_x + R * cos(t)
-        y_target = centre_y + R * sin(t)
+        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, _, _ = step_system(
+            pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
+            Kp, Kd, Ki, alpha, t
+        )
 
-        # noise
-        noise_level = 0.2
-        measured_x = pos[0] + random.uniform(-noise_level, noise_level)
-        measured_y = pos[1] + random.uniform(-noise_level, noise_level)
-
-        # filtering
-        filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
-        filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
-
-        # error
-        error_x = x_target - filtered_x
-        error_y = y_target - filtered_y
-
-        # PID
-        ax_control = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
-        ay_control = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
-
-        velocity[0] += ax_control * dt
-        velocity[1] += ay_control * dt
-
-        speed = sqrt(velocity[0]**2 + velocity[1]**2)
-        if speed > max_speed:
-            scale = max_speed / speed
-            velocity[0] *= scale
-            velocity[1] *= scale
-
-        pos[0] += velocity[0] * dt
-        pos[1] += velocity[1] * dt
-
-        # integral
-        error_sum_x += error_x * dt
-        error_sum_y += error_y * dt
-
-        error_sum_x = max(min(error_sum_x, limit), -limit)
-        error_sum_y = max(min(error_sum_y, limit), -limit)
-
-        # accumulate cost
         total_cost += (x_target - pos[0])**2 + (y_target - pos[1])**2
 
     return total_cost
@@ -95,47 +109,12 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
 def update(frame):
     t = frame * dt
 
-    x_target = centre_x + R * cos(t)
-    y_target = centre_y + R * sin(t)
-
-    # add measurement noise
-    noise_level = 0.2
-    measured_x = pos[0] + random.uniform(-noise_level, noise_level)
-    measured_y = pos[1] + random.uniform(-noise_level, noise_level)
-
     global filtered_x, filtered_y, error_sum_x, error_sum_y
 
-    filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
-    filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
-
-    # compute error using filtered measurements
-    error_x = x_target - filtered_x
-    error_y = y_target - filtered_y
-
-    # PID control
-    ax_control = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
-    ay_control = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
-
-    acceleration = [ax_control, ay_control]
-
-    velocity[0] += acceleration[0] * dt
-    velocity[1] += acceleration[1] * dt
-
-    speed = sqrt((velocity[0]**2) + (velocity[1]**2))
-    # print(speed)
-    if speed > max_speed:
-        scale = max_speed / speed
-        velocity[0] *= scale
-        velocity[1] *= scale
-
-    pos[0] += velocity[0] * dt
-    pos[1] += velocity[1] * dt
-
-    error_sum_x += error_x * dt
-    error_sum_y += error_y * dt
-
-    error_sum_x = max(min(error_sum_x, limit), -limit)
-    error_sum_y = max(min(error_sum_y, limit), -limit)
+    pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y = step_system(
+        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
+        Kp, Kd, Ki, alpha, t
+    )
 
     noisy_x_pos.append(pos[0])
     noisy_y_pos.append(pos[1])
