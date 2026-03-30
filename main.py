@@ -40,11 +40,8 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     wind_x = 0.4 * sin(0.7 * t)
     wind_y = -0.2 * cos(0.5 * t)
 
-    # drag
+    # drag coefficient
     drag = 0.3
-
-    velocity[0] -= drag * velocity[0] * dt
-    velocity[1] -= drag * velocity[1] * dt
 
     # target
     x_target = centre_x + R * cos(t)
@@ -67,9 +64,13 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     ax = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
     ay = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
 
+    # drag force (opposes current velocity)
+    drag_x = -drag * velocity[0]
+    drag_y = -drag * velocity[1]
+
     # physics update
-    velocity[0] += (ax + wind_x) * dt
-    velocity[1] += (ay + wind_y) * dt
+    velocity[0] += (ax + wind_x + drag_x) * dt
+    velocity[1] += (ay + wind_y + drag_y) * dt
 
     speed = sqrt(velocity[0]**2 + velocity[1]**2)
     if speed > max_speed:
@@ -87,10 +88,10 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     error_sum_x = max(min(error_sum_x, limit), -limit)
     error_sum_y = max(min(error_sum_y, limit), -limit)
 
-    ax_total = ax + wind_x - drag * velocity[0]
-    ay_total = ay + wind_y - drag * velocity[1]
+    ax_total = ax + wind_x + drag_x
+    ay_total = ay + wind_y + drag_y
 
-    return pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax
+    return pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y
 
 def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     # reset state for each simulation
@@ -106,7 +107,7 @@ def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     for step in range(1000):
         t = step * dt
 
-        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, _, _ = step_system(
+        pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, *_ = step_system(
             pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
             Kp, Kd, Ki, alpha, t
         )
@@ -120,7 +121,7 @@ def update(frame):
 
     global filtered_x, filtered_y, error_sum_x, error_sum_y
 
-    pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax = step_system(
+    pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax, drag_x, drag_y = step_system(
         pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
         Kp, Kd, Ki, alpha, t
     )
@@ -134,10 +135,16 @@ def update(frame):
     measured_line.set_data(measured_x_pos, measured_y_pos)
     target_point.set_data([x_target], [y_target])
 
-    ax.quiver(pos[0], pos[1], wind_x, wind_y, color='blue', scale=5)
-    ax.quiver(pos[0], pos[1], ax_total, ay_total, color='green', scale=5)
+    wind_vec.set_offsets([pos[0], pos[1]])
+    wind_vec.set_UVC(wind_x, wind_y)
 
-    return line, measured_line, target_point
+    control_vec.set_offsets([pos[0], pos[1]])
+    control_vec.set_UVC(ax_total, ay_total)
+
+    drag_vec.set_offsets([pos[0], pos[1]])
+    drag_vec.set_UVC(drag_x, drag_y)
+
+    return line, measured_line, target_point, wind_vec, control_vec
 
 def animate_controller():
     ax.set_xlim(0, 5)
@@ -145,7 +152,7 @@ def animate_controller():
 
     ax.legend(['Actual Path', 'Measured Path', 'Target'])
 
-    ani = FuncAnimation(fig, update, frames=int(2*pi / dt), interval=20, blit=True)
+    ani = FuncAnimation(fig, update, frames=int(2*pi / dt), interval=20, blit=False)
     # ani.save('output.mp4', fps=30)
 
     plt.xlabel('X Pos')
@@ -176,12 +183,17 @@ def optimise():
 
 def run():
     global fig, ax, line, measured_line, target_point
+    global wind_vec, control_vec, drag_vec
 
     fig, ax = plt.subplots()
 
     line, = ax.plot([], [])
     measured_line, = ax.plot([], [], 'g--', alpha=0.6)
     target_point, = ax.plot([], [], 'ro', markersize=5)
+
+    wind_vec = ax.quiver(0, 0, 0, 0, color='blue', scale=5)
+    control_vec = ax.quiver(0, 0, 0, 0, color='green', scale=5)
+    drag_vec = ax.quiver(0, 0, 0, 0, color='red', scale=5)
 
     animate_controller()
 
