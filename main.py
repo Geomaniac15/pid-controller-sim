@@ -10,7 +10,7 @@ velocity = [0.0, 0.0, 0.0]
 
 max_speed = 2.0
 
-centre_x = 2.0
+centre_x = 1.0
 centre_y = 1.0
 R = 0.5
 
@@ -289,7 +289,7 @@ def animate_controller():
     ax.legend()
 
     ani = FuncAnimation(fig, update, frames=int(2*pi / dt), interval=20, blit=False)
-    # ani.save('output.mp4', fps=30)
+    ani.save('demo.gif', writer='pillow', fps=30)
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
