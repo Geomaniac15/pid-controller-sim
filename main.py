@@ -13,15 +13,15 @@ centre_y = 3.0
 R = 0.5
 
 Kp = 2.0 # proportional - accelerator
-Kd = 1.5 # derivative - brakes
-Ki = 0.1
+Kd = 2.5 # derivative - brakes
+Ki = 0.0
 
 noisy_x_pos = []
 noisy_y_pos = []
 measured_x_pos = []
 measured_y_pos = []
 
-alpha = 0.05
+alpha = 0.1
 dt = 0.01
 limit = 5
 
