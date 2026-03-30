@@ -14,6 +14,7 @@ R = 0.5
 
 Kp = 2.0 # proportional - accelerator
 Kd = 1.5 # derivative - brakes
+Ki = 0.1
 
 noisy_x_pos = []
 noisy_y_pos = []
@@ -22,10 +23,15 @@ measured_y_pos = []
 
 alpha = 0.05
 dt = 0.01
+limit = 5
 
 # initialise filtered state
 filtered_x = 0.0
 filtered_y = 0.0
+
+# error of sums
+error_sum_x = 0.0
+error_sum_y = 0.0
 
 def update(frame):
     t = frame * dt
@@ -38,13 +44,18 @@ def update(frame):
     measured_x = pos[0] + random.uniform(-noise_level, noise_level)
     measured_y = pos[1] + random.uniform(-noise_level, noise_level)
 
-    global filtered_x, filtered_y
+    global filtered_x, filtered_y, error_sum_x, error_sum_y
 
     filtered_x = alpha * measured_x + (1 - alpha) * filtered_x
     filtered_y = alpha * measured_y + (1 - alpha) * filtered_y
 
-    ax_control = Kp * (x_target - filtered_x) - Kd * velocity[0]
-    ay_control = Kp * (y_target - filtered_y) - Kd * velocity[1]
+    # compute error using filtered measurements
+    error_x = x_target - filtered_x
+    error_y = y_target - filtered_y
+
+    # PID control
+    ax_control = Kp * error_x + Ki * error_sum_x - Kd * velocity[0]
+    ay_control = Kp * error_y + Ki * error_sum_y - Kd * velocity[1]
 
     acceleration = [ax_control, ay_control]
 
@@ -60,6 +71,12 @@ def update(frame):
 
     pos[0] += velocity[0] * dt
     pos[1] += velocity[1] * dt
+
+    error_sum_x += error_x * dt
+    error_sum_y += error_y * dt
+
+    error_sum_x = max(min(error_sum_x, limit), -limit)
+    error_sum_y = max(min(error_sum_y, limit), -limit)
 
     noisy_x_pos.append(pos[0])
     noisy_y_pos.append(pos[1])
