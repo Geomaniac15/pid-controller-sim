@@ -13,16 +13,16 @@ centre_x = 1.5
 centre_y = 3.0
 R = 0.5
 
-Kp = 2.0 # proportional - accelerator
-Kd = 2.5 # derivative - brakes
-Ki = 0.0
+Kp = 4.84 # proportional - accelerator
+Kd = 3.16 # derivative - brakes
+Ki = 0.06
 
 noisy_x_pos = []
 noisy_y_pos = []
 measured_x_pos = []
 measured_y_pos = []
 
-alpha = 0.1
+alpha = 0.19
 dt = 0.01
 limit = 5
 
@@ -162,13 +162,49 @@ def animate_controller():
 
     plt.show()
 
-# fig, ax = plt.subplots()
+def optimise():
+    best_cost = float('inf')
+    best_params = None
 
-# line, = ax.plot([], [])
-# measured_line, = ax.plot([], [], 'g--', alpha=0.6)
-# target_point, = ax.plot([], [], 'ro', markersize=5)
+    for _ in range(200):
+        Kp = random.uniform(0.5, 5)
+        Kd = random.uniform(0, 5)
+        Ki = random.uniform(0.0, 0.5)
+        alpha = random.uniform(0.01, 0.3)
 
-# animate_controller()
+        cost = mean(simulate(Kp, Kd, Ki, alpha) for _ in range(5))
+
+        if cost < best_cost:
+            best_cost = cost
+            best_params = (Kp, Kd, Ki, alpha)
+
+    print('Best params:', best_params)
+    print('Best cost:', best_cost)
+
+    return best_params
+
+def run():
+    global fig, ax, line, measured_line, target_point
+
+    fig, ax = plt.subplots()
+
+    line, = ax.plot([], [])
+    measured_line, = ax.plot([], [], 'g--', alpha=0.6)
+    target_point, = ax.plot([], [], 'ro', markersize=5)
+
+    animate_controller()
+
+if __name__ == '__main__':
+    MODE = 'optimise'  # options: 'run' or 'optimise'
+
+    if MODE == 'optimise':
+        params = optimise()
+        if params:
+            Kp, Kd, Ki, alpha = params
+            print('\nRunning with optimised parameters...\n')
+            run()
+    else:
+        run()
 
 '''
 Kp: 0.5 - 5
@@ -177,23 +213,23 @@ Ki: 0 - 1
 alpha: 0.01 - 0.5
 '''
 
-best_cost = float('inf')
-best_params = None
+# best_cost = float('inf')
+# best_params = None
 
-for _ in range(200):
-    Kp = random.uniform(0.5, 5)
-    Kd = random.uniform(0, 5)
-    Ki = random.uniform(0.0, 0.5)
-    alpha = random.uniform(0.01, 0.3)
+# for _ in range(200):
+#     Kp = random.uniform(0.5, 5)
+#     Kd = random.uniform(0, 5)
+#     Ki = random.uniform(0.0, 0.5)
+#     alpha = random.uniform(0.01, 0.3)
 
-    cost = mean(simulate(Kp, Kd, Ki, alpha) for i in range(5))
+#     cost = mean(simulate(Kp, Kd, Ki, alpha) for i in range(5))
 
-    if cost < best_cost:
-        best_cost = cost
-        best_params = (Kp, Kd, Ki, alpha)
+#     if cost < best_cost:
+#         best_cost = cost
+#         best_params = (Kp, Kd, Ki, alpha)
 
-original_cost = simulate(Kp, Kd, Ki, alpha)
+# # original_cost = simulate(Kp, Kd, Ki, alpha)
 
-print('Best params:', best_params)
-print('Best cost:', best_cost)
-print('Original cost:', original_cost)
+# print('Best params:', best_params)
+# print('Best cost:', best_cost)
+# print('Original cost:', original_cost)
