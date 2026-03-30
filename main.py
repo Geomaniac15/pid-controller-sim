@@ -9,8 +9,8 @@ velocity = [0.0, 0.0]
 
 max_speed = 2.0
 
-centre_x = 1.5
-centre_y = 3.0
+centre_x = 2.0
+centre_y = 1.0
 R = 0.5
 
 Kp = 4.84 # proportional - accelerator
@@ -39,6 +39,12 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     # wind
     wind_x = 0.4 * sin(0.7 * t)
     wind_y = -0.2 * cos(0.5 * t)
+
+    # drag
+    drag = 0.3
+
+    velocity[0] -= drag * velocity[0] * dt
+    velocity[1] -= drag * velocity[1] * dt
 
     # target
     x_target = centre_x + R * cos(t)
@@ -81,7 +87,10 @@ def step_system(pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
     error_sum_x = max(min(error_sum_x, limit), -limit)
     error_sum_y = max(min(error_sum_y, limit), -limit)
 
-    return pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y
+    ax_total = ax + wind_x - drag * velocity[0]
+    ay_total = ay + wind_y - drag * velocity[1]
+
+    return pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax
 
 def simulate(Kp, Kd, Ki=0.0, alpha=0.1):
     # reset state for each simulation
@@ -111,7 +120,7 @@ def update(frame):
 
     global filtered_x, filtered_y, error_sum_x, error_sum_y
 
-    pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y = step_system(
+    pos[:], velocity[:], filtered_x, filtered_y, error_sum_x, error_sum_y, x_target, y_target, measured_x, measured_y, ax_total, ay_total, wind_x, wind_y, ax = step_system(
         pos, velocity, filtered_x, filtered_y, error_sum_x, error_sum_y,
         Kp, Kd, Ki, alpha, t
     )
@@ -124,6 +133,9 @@ def update(frame):
     line.set_data(noisy_x_pos, noisy_y_pos)
     measured_line.set_data(measured_x_pos, measured_y_pos)
     target_point.set_data([x_target], [y_target])
+
+    ax.quiver(pos[0], pos[1], wind_x, wind_y, color='blue', scale=5)
+    ax.quiver(pos[0], pos[1], ax_total, ay_total, color='green', scale=5)
 
     return line, measured_line, target_point
 
